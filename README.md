@@ -22,3 +22,11 @@ For the trees to show up:
 If a day's data is correctly labeled `yyyy-mm-dd-tree.txt` and `yyyy-mm-dd-performance.csv` and stored in `data/`,
 then when you go to daily-tree.html, that tree should be able to be displayed.
   
+Initial load page:
+![Image of the initial page](images/start.png)
+
+Selecting a date (2018-10-04 works):
+![Image of selecting a date](images/select.png)
+
+The final loaded image:
+![Image of the tree](images/result.png)

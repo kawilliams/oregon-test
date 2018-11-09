@@ -183,6 +183,7 @@ border-radius: 8px
     background: #eff3f8;
     overflow-y: scroll;
     max-width: 610px; /*540px; <-- doesn't interfere w/tree, 650 is ~80 cols'*/
+    min-width: 600px;
     font-family: monospace;
     font-size: 12px;
     whitespace: pre;

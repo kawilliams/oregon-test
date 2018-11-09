@@ -15,9 +15,11 @@
 <body>
 
     <label for="date">Select date:
-    	<input type="date" id="selectedDate" placeholder="yyyy-mm-dd"/><button type="button" onclick="callEverything()">Submit</button>
-     Choose from these dates (dummy data): 2018-06-25, 2018-07-13, or 2018-09-24
-    </label>	
+    	<input type="date" id="selectedDate" placeholder="yyyy-mm-dd"/>
+    </label>
+    <p>Select file to show in code-view: <input type="file" id="the-codeview-file-field"></p>
+<!--    <button type="button" onclick="callEverything()">Submit</button>-->
+
     <br /><br />
     <div id="shapekey">
         <p>Node key</p>
@@ -32,6 +34,7 @@
     <div id="code-view" style="height: 500px; overflow:scroll;"><span v-html="rawHtml"></span></div>
     <div id="legend"></div>
     <div id="tree-vis"></div>
+    <div id="main"></div>
 <!-- Copyright 2011 Jason Davies https://github.com/jasondavies/newick.js -->
 <script>function parseNewick(a){for(var e=[],r={},s=a.split(/\s*(;|\(|\)|,|:)\s*/),t=0;t<s.length;t++){var n=s[t];switch(n){case"(":var c={};r.branchset=[c],e.push(r),r=c;break;case",":var c={};e[e.length-1].branchset.push(c),r=c;break;case")":r=e.pop();break;case":":break;default:var h=s[t-1];")"==h||"("==h||","==h?r.name=n:":"==h&&(r.length=parseFloat(n))}}return r}</script>
 <script>
@@ -163,20 +166,41 @@ vmcode = new Vue({
             }
         });
 
-//codeData = makeCodeArray("als2.physl");
-codeArray = makeCodeArray("data/als_csv_instrumented.cpp");
+
+
 treeExists = false;
 HTMLElement.prototype.empty = function() {
 	while (this.firstChild) {
 		this.removeChild(this.firstChild);
 	}
 }
+
+function readFile(file) {                                                       
+    var reader = new FileReader();
+    reader.onload = readSuccess;                                            
+    function readSuccess(evt) { 
+        var field = document.getElementById('main');                        
+        field.innerHTML = evt.target.result;  
+        callEverything();
+    };
+    reader.readAsText(file);                                              
+} 
+
+document.getElementById('the-codeview-file-field').onchange = function(e){
+    readFile(e.srcElement.files[0]);
+}
 function callEverything() {
-	// console.log("Input value: ", document.querySelector("#selectedDate").value);
+        codeArray = document.getElementById('main').innerHTML.split("\n");
+        document.getElementById('main').innerHTML = "";
 	datadate = document.querySelector("#selectedDate").value;
 	textfile = "data/"+datadate + "-tree.txt";
 	csvfile = "data/"+datadate + "-performance.csv";
-	console.log(textfile, csvfile);
+//        if (!$( "#the-codeview-file-field" )[0].files[0]) {
+//            codefile = "";
+//        } else {
+//            codefile = $( "#the-codeview-file-field" )[0].files[0].name; 
+//        }
+//        console.log("codefile: ", codefile);
 	if (treeExists) {
 		var codeview = document.getElementById("code-view");
 		var legend = document.getElementById("legend");
@@ -185,8 +209,15 @@ function callEverything() {
 		legend.empty();
 		//treevis.empty();
 	}
+        //codeData = makeCodeArray("als2.physl");
+//        if (window.File && window.FileReader && window.FileList && window.Blob) {
+//            
+//            codeArray = makeCodeArray(codefile); 
+//        } else {
+//            alert("The File APIs are not fully supported in this browser. Firefox, Chrome, and Safari are all known to support File API.");
+//        }
 	if (textfile && csvfile) {	
-    d3.queue()
+         d3.queue()
           .defer(d3.text, textfile)//"data/2018-09-25-tree.txt")
           .defer(d3.csv, csvfile)//"data/2018-09-25-performance.csv")
           .await(analyze);
@@ -203,6 +234,13 @@ function callEverything() {
 function analyze(error, treeformat, perfdata) {
     //if (error) throw error;
     if (error) alert("Data for " + datadate + " does not exist.");
+//    if (window.File && window.FileReader && window.FileList && window.Blob) {
+//            console.log("cdefile: ", codefile);            
+//            codeArray = makeCodeArray(codefile); 
+//        } else {
+//            alert("The File APIs are not fully supported in this browser. Firefox, Chrome, and Safari are all known to support File API.");
+//    }
+//    console.log("My code array", codeArray);
     treeExists = true;
 
     // Assigns parent, children, height, depth
@@ -569,38 +607,44 @@ colorInTimeScale = d3.scaleQuantize() //went with log scale
 //         }
      }
  });*/
-      cv = d3.select("#code-view");
-      cv.selectAll("pre")
-          .data(codeArray)
-          .enter().append("pre")
-          .attr("class", function(d,i){
-              if (d.includes("char const* const als_explicit")) { //file sensitive
-              offset = i;
+        console.log(codeArray);
+      if (codeArray.length > 0) { //if user uploads codeview 
+          cv = d3.select("#code-view");
+          cv.selectAll("pre")
+              .data(codeArray)
+              .enter().append("pre")
+              .attr("class", function(d,i){
+                  if (d.includes("char const* const als_explicit")) { //file sensitive
+                  offset = i;
+              }
+                  return "line " + i;
+              })
+              .text(function(d){ 
+                  if (!d) {
+                      return "\n";
+                  }
+                  return d; 
+              })
+              .style("font-family", "monospace")
+              .style("margin", "2px 0px 0px 0px");
+          var coll = document.getElementsByClassName("collapsible");
+          var i;
+          for (i=0; i<coll.length; i++) {
+              coll[i].addEventListener("click", function(){
+                  this.classList.toggle("active");
+                  var content = this.nextElementSibling;
+                  if (content.style.display === "block") {
+                      content.style.display = "none";
+                  } 
+                  else {
+                      content.style.display = "block";
+                  }
+              });
           }
-              return "line " + i;
-          })
-          .text(function(d){ 
-              if (!d) {
-                  return "\n";
-              }
-              return d; 
-          })
-          .style("font-family", "monospace")
-          .style("margin", "2px 0px 0px 0px");
-      var coll = document.getElementsByClassName("collapsible");
-      var i;
-      for (i=0; i<coll.length; i++) {
-          coll[i].addEventListener("click", function(){
-              this.classList.toggle("active");
-              var content = this.nextElementSibling;
-              if (content.style.display === "block") {
-                  content.style.display = "none";
-              } 
-              else {
-                  content.style.display = "block";
-              }
-          });
-      }
+        } else {
+            $('#code-view').css('visibility', 'hidden');
+            $('#collapsible').css('visibility', 'hidden');
+        }
         // Enter any new modes at the parent's previous position.
   var nodeEnter = node.enter().append('g')
       .attr('class', 'node')
@@ -1153,12 +1197,24 @@ function toggleSwitchAction() {
     
 }
 
-function makeCodeArray(physlfile) {
-    codeArray = [];
-    d3.text(physlfile, function(data){
-        codeArray = data.split('\n');
-    });  
+function makeCodeArray(codefile) {
+    var codeArray = [];
+//    d3.text(codefile, function(data){
+//        codeArray = data.split('\n');
+//    });  
+//    var rawFile = new XMLHttpRequest();
+//    rawFile.open("GET", codefile, false);
+//    rawFile.onreadystatechange = function(){
+//        if (rawFile.readyState === 4) {
+//            if (rawFile.status === 200 || rawFile.status === 0) {
+//                var allText = rawFile.responseText;
+//                codeArray = allText.split('\n');
+//            }
+//        }
+//    };
+//    rawFile.send(null);
     
+    //console.log("Code array in fun: ", codeArray);
     return codeArray;
 }
 function getImportantTypeName(perfdata) {

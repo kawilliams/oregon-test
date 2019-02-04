@@ -17,8 +17,8 @@
     <label for="date">Select date:
     	<input type="date" id="selectedDate" placeholder="yyyy-mm-dd"/>
     </label>
-    <p>Select file to show in code-view: <input type="file" id="the-codeview-file-field"></p>
-<!--    <button type="button" onclick="callEverything()">Submit</button>-->
+    <!-- <p>Select file to show in code-view: <input type="file" id="the-codeview-file-field"></p> -->
+    <button type="button" onclick="callEverything()">Submit</button>
 
     <br /><br />
     <div id="shapekey">
@@ -195,12 +195,7 @@ function callEverything() {
 	datadate = document.querySelector("#selectedDate").value;
 	textfile = "data/"+datadate + "-tree.txt";
 	csvfile = "data/"+datadate + "-performance.csv";
-//        if (!$( "#the-codeview-file-field" )[0].files[0]) {
-//            codefile = "";
-//        } else {
-//            codefile = $( "#the-codeview-file-field" )[0].files[0].name; 
-//        }
-//        console.log("codefile: ", codefile);
+
 	if (treeExists) {
 		var codeview = document.getElementById("code-view");
 		var legend = document.getElementById("legend");

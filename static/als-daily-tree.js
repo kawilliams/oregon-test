@@ -13,22 +13,23 @@ function makeCodeArray(codefile) {
                 .data(codeArray)
                 .enter().append("pre")
                 .attr("class", function (d, i) {
-                    if (d.includes("char const* const als_explicit")) { //file sensitive
+                    if (d.includes("define(als,")) { //file sensitive char const* const als_explicit
                         offset = i;
                     }
                     return "line " + i;
                 })
-                .text(function (d) {
+                .text(function (d,i) {
                     if (!d) {
-                        return "\n";
+                        return i + "| \n";
                     }
-                    return d;
+                    if (i < 10) i = " " + i;
+                    return i + "| " + d;
                 })
                 .style("font-family", "monospace")
                 .style("margin", "2px 0px 0px 0px");
         
     });  
-    
+  
 }
 
 var today = new Date();

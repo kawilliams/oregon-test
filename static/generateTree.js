@@ -4,6 +4,7 @@
  * and open the template in the editor.
  */
 console.log("Generate tree for daily-tree.html");
+timetype = "INCLUSIVE";
 
 function callEverything(datadate) {
     codeArray = document.getElementById('main').innerHTML.split("\n");
@@ -22,7 +23,7 @@ function callEverything(datadate) {
         legend.empty();
         //treevis.empty();
     }
-    
+
     //        if (window.File && window.FileReader && window.FileList && window.Blob) {
     //            
     //            codeArray = makeCodeArray(codefile); 
@@ -91,8 +92,8 @@ function analyze(error, treeformat, perfdata) {
     });
 
 
-    colorsGr = ["#edf8fb", "#b2e2e2", "#66c2a4", "#2ca25f", "#006d2c"]; //green
-    colorsPur = ["#f2f0f7", "#cbc9e2", "#9e9ac8", "#756bb1", "#54278f"];  //blue
+    colorsGr = ["green", "green"];//["#edf8fb", "#b2e2e2", "#66c2a4", "#2ca25f", "#006d2c"]; //green
+    colorsPur = ["purple", "purple"]; //["#f2f0f7", "#cbc9e2", "#9e9ac8", "#756bb1", "#54278f"];  //blue
     colorTimeScale = d3.scaleQuantize() //went with log scale
             .domain(d3.extent(domainTimesIn)) //domainTimes //kttime [0,10088524656]
             .range(colorsPur);
@@ -103,11 +104,11 @@ function analyze(error, treeformat, perfdata) {
         domainVals.push(colorTimeScale.invertExtent(colorsPur[i])[1]);
     }
 
-    timetype = "INCLUSIVE";
+
     // ****************** Slider section **************************
     threshold = 0;
-  
-    update(root, fullRoot, perfdata, threshold, timetype, false);
+
+    update(root, fullRoot, perfdata, threshold, false);
 
     x = d3.scaleLinear()
             .domain([0, greatestVal])
@@ -120,7 +121,7 @@ function analyze(error, treeformat, perfdata) {
             .tickFormat(function (d) {
                 return prettyprintTime(d);
             }); // === 0.5 ? formatPercent(d) : formatNumber(100 * d); });
-    console.log(x.domain(), xAxis.tickValues());
+
     var legendDim = {width: 600, height: 45};
     var g = d3.select("#legend").append("svg")
             .attr("class", "legend")
@@ -257,7 +258,7 @@ function countNodes(node) {
 
 offset = 0;
 
-function update(source, fullSource, perfdata, threshold, timetype, clicked) {
+function update(source, fullSource, perfdata, threshold, clicked) {
 
     // handle.attr("cx", slider_x(threshold));
     // sliderText.text(prettyprintTime(threshold))
@@ -385,44 +386,26 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
             .attr("transform", function (d) {
                 return "translate(" + source.y0 + "," + source.x0 + ")";
             })
-            .on('click', click)
-            .on("mouseenter", function (d) {
-                if (d.x < 120) { //magic number re tooltip size
-                    tool_tip_south.show(d);
-                } else {
-                    tool_tip.show(d);
-                }
-                showNodeCode(d);
-            })
-            .on("mouseout", function (d) {
-                tool_tip.hide(d);
-                tool_tip_south.hide(d);
-                //recolor path
-                hideNodeCode(d);
-            });
+            .on('click', click);
+//            .on("mouseenter", function (d) {
+//                if (d.x < 120) { //magic number re tooltip size
+//                    tool_tip_south.show(d);
+//                } else {
+//                    tool_tip.show(d);
+//                }
+//                showNodeCode(d);
+//            })
+//            .on("mouseout", function (d) {
+//                tool_tip.hide(d);
+//                tool_tip_south.hide(d);
+//                
+//                hideNodeCode(d);
+//            });
 
 
-    // Add Circle for the nodes
-    //  nodeEnter.append('circle')
-    //      .attr('class', 'node')
-    //      .attr('r', 10)
-    //      .style("stroke", function(d){ //stroke color by direct or not
-    //          if (d._perfdata) {
-    //              return (d._perfdata.avg_direct_time > 0) ? "red" : "purple"; 
-    //          }
-    //      });
 
-    // Add Triangle for nodes when collapsed and have children
-    //katy
-
-    //hard coded the correct time katy
-    //orig
-    //"/phylanx/call-function$2$lra/2$33$5","call-function/lra(33, 5)",1,377929,-1
-    // new
-    //"/phylanx/call-function$2$lra/2$33$5","call-function/lra(33, 5)",1,377929000,-1
     var symbol = d3.symbol().size([150]);
-    aNodeIsHighlighted = false;
-    oldNode = "";
+
     prevNodeNum = -1;
     nodeEnter
             .append("path")
@@ -449,17 +432,12 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
             })
             .style("stroke", "black")
             .style("fill", function (d) { //katy
-                d.highlighted = false;
                 if (d._perfdata) { //color circle by time-per-instance
                     if (timetype === "EXCLUSIVE") {
-                        if (d._perfdata.exclusiveTime >= 0) {
-                            d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
-                            return colorExTimeScale(d._perfdata.exclusiveTime)
-                        } else if (d._perfdata.exclusiveTime < 0) {
-                            //console.log("HERE - negative exclusive Time");
+                        d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                        if (d._perfdata.exclusiveTime < 0)
                             return "magenta";
-                        }
-                        return "magenta";
+                        return colorExTimeScale(d._perfdata.exclusiveTime);
                     } else if (timetype === "INCLUSIVE") {
                         if (d._perfdata.inclusiveTime >= 0) {
                             d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
@@ -478,12 +456,26 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                     d3.select(lineSelected).style("background-color", "#eff3f8");
 
                 // recolor any previously-highlighted nodes
-                d3.selectAll(".node").filter(function (d) {
-                    if (d.id === prevNodeNum) {
-                        return true;
+                d3.selectAll(".node")
+//                        .filter(function (d) {
+//                    if (d.id === prevNodeNum) {
+//                        console.log("prevNodeNum", prevNodeNum);
+//                        return false;
+//                    }
+//                })
+                        .select("path").style("fill", function (d) {
+                    if (d._perfdata) { //color circle by time-per-instance
+
+                        if (timetype === "INCLUSIVE") {
+                            d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
+                            return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
+                        } else {
+                            d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                            if (d._perfdata.exclusiveTime < 0)
+                                return "magenta";
+                            return colorExTimeScale(d._perfdata.exclusiveTime);
+                        }
                     }
-                }).select("path").style("fill", function (d) {
-                    return d.oldColor;
                 });
 
                 // Color the selected node yellow
@@ -516,7 +508,7 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                             }
                         }
                     });
-                    hl_nodes.style("fill", function(d){
+                    hl_nodes.style("fill", function (d) {
                         d.oldColor = d3.select(this).style("fill");
                         return "yellow";
                     });
@@ -541,6 +533,7 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                             .attr("d", hl_line);
                 }
 
+
                 showNodeCode(d); //show code view
             })
             .on("mouseout", function (d) {
@@ -548,18 +541,34 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                 if (d._perfdata) {
                     currName = getImportantTypeName(d._perfdata);
                 }
-                d3.selectAll(".node").selectAll("path").filter(function (d) {
-                    var nodeName = "";
-                    if (d._perfdata)
-                        nodeName = getImportantTypeName(d._perfdata);
 
-                    if (nodeName === currName)
-                        return true;
-
-                }).style("fill", function (d) {
-                    return d.oldColor;
-                });
+                d3.selectAll(".node").selectAll("path")
+//                        .filter(function (d) {
+//                    var nodeName = "";
+//                    if (d._perfdata)
+//                        nodeName = getImportantTypeName(d._perfdata);
+//
+//                    if (nodeName === currName)
+//                        return true;
+//
+//                })
+                        .style("fill", function (d) {
+                            if (d.id === prevNodeNum)
+                                return "yellow";
+                            if (d._perfdata) { //color circle by time-per-instance
+                                if (timetype === "INCLUSIVE") {
+                                    d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
+                                    return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
+                                } else {
+                                    d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                                    if (d._perfdata.exclusiveTime < 0)
+                                        return "magenta";
+                                    return colorExTimeScale(d._perfdata.exclusiveTime);
+                                }
+                            }
+                        });
                 d3.selectAll(".hl-edges").remove();
+
                 hideNodeCode(d);
 
             });
@@ -594,14 +603,16 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
             d3.select(lineSelected).style("background-color", "#eff3f8");
 
         // recolor any previously-highlighted nodes
-        d3.selectAll(".node").filter(function (d) {
-            if ((getLineNum(d.data.name) === prevLineNum) ||
-                    (d.id === prevNodeNum)) {
-                //console.log("I'm from the previous line", prevLineNum);
-                return true;
-            }
-        }).select("path").style("fill", function (d) {
-            console.log("Recolor any previously highlighted nodes", d.oldColor);
+        d3.selectAll(".node")
+//            .filter(function (d) {
+//            if ((getLineNum(d.data.name) === prevLineNum) ||
+//                    (d.id === prevNodeNum)) {
+//                //console.log("I'm from the previous line", prevLineNum);
+//                return true;
+//            }
+//        })
+                .select("path").style("fill", function (d) {
+            //console.log("Recolor any previously highlighted nodes", d.oldColor);
             return d.oldColor;
         });
 
@@ -772,7 +783,8 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
     }
 
     function showNodeCode(d) {
-        linenum = getLineNum(d.data.name) - 1 + offset;
+        offset = 20;
+        linenum = getLineNum(d.data.name) + offset;
         d3.selectAll(".line").filter(function () {
             if (parseInt(d3.select(this).attr("class").split(" ")[1]) === linenum) {
                 return true;
@@ -785,7 +797,8 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
     }
 
     function hideNodeCode(d) {
-        linenum = getLineNum(d.data.name) - 1 + offset;
+        offset = 20;
+        linenum = getLineNum(d.data.name) + offset;
         d3.selectAll(".line").filter(function () {
             if (parseInt(d3.select(this).attr("class").split(" ")[1]) === linenum) {
                 return true;
@@ -841,7 +854,7 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                 if (branch[i].children) {
                     branch[i]._children = branch[i].children;
                     branch[i].children = null;
-                    
+
                 } else {
                     branch[i].children = branch[i]._children;
                     branch[i]._children = null;
@@ -871,9 +884,11 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
                 })
                 .style("stroke", "black")
                 .style("fill", function (d) {
+                    if (d.id === prevNodeNum)
+                        return "yellow";
                     return d.oldColor;
                 });
-        
+
 
         update(d, fullRoot, perfdata, threshold, timetype, clicked = true);
     }
@@ -903,16 +918,16 @@ function prettyprintTime(time) {
 }
 
 function closeCodeView() {
-                var collapsibleButton = document.getElementById("collapsible");
-                if (collapsibleButton.innerHTML === "Hide Code View") {
-                    document.getElementById('code-view').style.visibility = 'hidden';
-                    collapsibleButton.innerHTML = "Show Code View";
-                } else {
-                    document.getElementById('code-view').style.visibility = 'visible';
-                    collapsibleButton.innerHTML = "Hide Code View";
-                }
-            }
-            
+    var collapsibleButton = document.getElementById("collapsible");
+    if (collapsibleButton.innerHTML === "Hide Code View") {
+        document.getElementById('code-view').style.visibility = 'hidden';
+        collapsibleButton.innerHTML = "Show Code View";
+    } else {
+        document.getElementById('code-view').style.visibility = 'visible';
+        collapsibleButton.innerHTML = "Hide Code View";
+    }
+}
+
 function toggleSwitchAction() {
     toggleswitch = document.getElementById("myCheck");
     (toggleswitch.checked === true) ? timetype = "EXCLUSIVE" : timetype = "INCLUSIVE";
@@ -922,10 +937,9 @@ function toggleSwitchAction() {
             .style("fill", function (d) {
                 if (d._perfdata) {
                     if (timetype === "EXCLUSIVE") {
-                        if (d._perfdata.exclusiveTime < 0) {
-                            return "magenta";
-                        }
                         d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                        if (d._perfdata.exclusiveTime < 0)
+                            return "magenta";
                         return colorExTimeScale(d._perfdata.exclusiveTime); //avg_Time
                     } else {
                         d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
@@ -947,7 +961,7 @@ function toggleSwitchAction() {
     (timetype === "EXCLUSIVE") ? currentColorTimeScale = colorExTimeScale : currentColorTimeScale = colorInTimeScale;
     g.selectAll("rect")
             .data(
-                currentColorTimeScale.range().map(function (color) {
+                    currentColorTimeScale.range().map(function (color) {
                 var d = currentColorTimeScale.invertExtent(color);
                 if (d[0] === null)
                     d[0] = x.domain()[0];
@@ -965,6 +979,7 @@ function toggleSwitchAction() {
             .style("fill", function (d) {
                 return (timetype === "EXCLUSIVE") ? colorExTimeScale(d[0]) : colorInTimeScale(d[0]);
             });
+
 
 }
 

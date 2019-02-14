@@ -144,6 +144,36 @@ padding: 2px;
 border-radius: 8px
 }
 
+/* Tooltip container */
+.help-tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+}
+
+/* Tooltip text */
+.help-tooltip .help-tooltip-text {
+  visibility: hidden;
+  width: 150px;
+  background-color: lightsteelblue;
+  color: #000;
+  text-align: center;
+  padding: 5px;
+  border-radius: 6px;
+  font-family: sans-serif;
+  font-size: 14px;
+  /* Position the tooltip text - see examples below! */
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 40%;
+  margin-left: -75px;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.help-tooltip:hover .help-tooltip-text {
+  visibility: visible;
+}
 .collapsible {
   position: fixed;
   top: 10px;

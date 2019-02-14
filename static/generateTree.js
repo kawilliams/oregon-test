@@ -1,68 +1,56 @@
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/*
+ * General tree builder. Interfaces with any -tree.js file. 
  */
 console.log("Generate tree for daily-tree.html");
 timetype = "INCLUSIVE";
 
-function callEverything(datadate) {
-    codeArray = document.getElementById('main').innerHTML.split("\n");
-    document.getElementById('main').innerHTML = "";
-    if (!datadate) {
-        datadate = document.querySelector("#selectedDate1").value + "-als";
-    }
-    textfile = "data/" + datadate + "-tree.txt";
-    csvfile = "data/" + datadate + "-performance.csv";
+function callEverything(textfile1, csvfile1, textfile2, csvfile2) {
+    console.log("callEverything");
+    var date1 = document.getElementById("selectedDate1").value;
+    var date2 = document.getElementById("selectedDate2").value;
+    var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+    console.log("currentTime", currentTime);
 
-    if (treeExists) {
-        var codeview = document.getElementById("code-view");
-        var legend = document.getElementById("legend");
-        //var treevis = document.getElementById("tree-vis");
-        codeview.empty();
-        legend.empty();
-        //treevis.empty();
-    }
-
-    //        if (window.File && window.FileReader && window.FileList && window.Blob) {
-    //            
-    //            codeArray = makeCodeArray(codefile); 
-    //        } else {
-    //            alert("The File APIs are not fully supported in this browser. Firefox, Chrome, and Safari are all known to support File API.");
-    //        }
-    if (textfile && csvfile) {
+    if (textfile1 && csvfile1 && textfile2 && csvfile2) {
         d3.queue()
-                .defer(d3.text, textfile)//"data/2018-09-25-tree.txt")
-                .defer(d3.csv, csvfile)//"data/2018-09-25-performance.csv")
+                .defer(d3.text, textfile1)//"data/2018-09-25-tree.txt")
+                .defer(d3.csv, csvfile1)//"data/2018-09-25-performance.csv")
+                .defer(d3.text, textfile2)//"data/2018-09-25-tree.txt")
+                .defer(d3.csv, csvfile2)//"data/2018-09-25-performance.csv")
                 .await(analyze);
-        document.getElementById("shapekey").style.visibility = "visible";
-        document.getElementById("legend").style.visibility = "visible";
-        document.getElementById("code-view").style.visibility = "visible";
-        document.getElementById("tree-vis").style.visibility = "visible";
-        document.getElementById("collapsible").style.visibility = "visible";
+
+    } else if (textfile1 && csvfile1) {
+        d3.queue()
+                .defer(d3.text, textfile1)//"data/2018-09-25-tree.txt")
+                .defer(d3.csv, csvfile1)//"data/2018-09-25-performance.csv")
+                .await(analyze);
     } else {
-        alert("Data for " + datadate + " does not exist.");
+
+        alert("Data for " + textfile1 + ", " + csvfile1 + ", " + textfile2 + " , " + csvfile2 + " does not exist.");
     }
+    document.getElementById("shapekey").style.visibility = "visible";
+    document.getElementById("legend").style.visibility = "visible";
+    document.getElementById("code-view").style.visibility = "visible";
+    document.getElementById("tree-vis").style.visibility = "visible";
+    document.getElementById("collapsible").style.visibility = "visible";
 }
 
-function analyze(error, treeformat, perfdata) {
+function analyze(error, treeformat, perfdata, treeformat2, perfdata2) {
+    console.log("analyze");
+
     //if (error) throw error;
+
     if (error)
-        alert("Data for " + datadate + " does not exist.");
-    //    if (window.File && window.FileReader && window.FileList && window.Blob) {
-    //            console.log("cdefile: ", codefile);            
-    //            codeArray = makeCodeArray(codefile); 
-    //        } else {
-    //            alert("The File APIs are not fully supported in this browser. Firefox, Chrome, and Safari are all known to support File API.");
-    //    }
-    //    console.log("My code array", codeArray);
-    treeExists = true;
+        alert("Data for " + treeformat + ", " + perfdata + ", " + treeformat2 + " , " + perfdata2 + " does not exist.");
 
     // Assigns parent, children, height, depth
-    treeformat = parseNewick(treeformat);
+    treeformatOrig = treeformat.trim();
+    treeformat = parseNewick(treeformatOrig);
+
     root = d3.hierarchy(treeformat, function (d) {
         return d.branchset;
     });
+
     fullRoot = d3.hierarchy(treeformat, function (d) {
         return d.branchset;
     });
@@ -71,119 +59,81 @@ function analyze(error, treeformat, perfdata) {
     count = 1; //count the root
     widestLevel = 0;
     countNodes(root);
+    count1 = count;
+
+    if (treeformat2) {
+        treeformat2Orig = treeformat2.trim();
+        treeformat2 = parseNewick(treeformat2Orig);
+        root2 = d3.hierarchy(treeformat2, function (d) {
+            return d.branchset;
+        });
+        //Check that second tree has the same format
+        count = 1;
+        countNodes(root2);
+        if (count1 !== count) {
+            console.log("ERROR: TREES DO NOT HAVE THE SAME NUMBER OF NODES");
+        }
+        //console.log(treeformatOrig.length, treeformat2Orig.length);
+        if (treeformat.length !== treeformat2.length) {
+            console.log("ERROR: TREE FORMAT FILES ARE DIFFERENT LENGTHS");
+        }
+        for (var i = 0; i < treeformatOrig.length; i++) {
+            if (treeformatOrig[i] !== treeformat2Orig[i]) {
+                console.log("ERROR: CHARACTERS OF TREE FILES DO NOT MATCH", treeformatOrig[i], treeformat2Orig[i]);
+            }
+        }
+    }
+
 
     //if (count > 30) root.children.forEach(flatten); 
     root.x0 = height / 2;
     root.y0 = 0;
 
     // Collecting the performance times
-    domainTimes = [],
+    domainTimesIn = [],
             domainTimesEx = [],
-            domainTimesIn = [];
+            domainTimesInDiff = [],
+            domainTimesExDiff = [];
     prim_inst = [];
     perfdata.map(function (d) {
         //        var avgTime = (+d.time)/(+d.count); //kttime
         //        if (avgTime > 0) {
         //            domainTimes.push(avgTime); //katy check times * 1.e-9);
         //        }
-        domainTimes.push(+d.time); //kttime
         domainTimesIn.push(+d.time); //kttime
         prim_inst.push(d.primitive_instance);
     });
 
 
-    colorsGr = ["green", "green"];//["#edf8fb", "#b2e2e2", "#66c2a4", "#2ca25f", "#006d2c"]; //green
-    colorsPur = ["purple", "purple"]; //["#f2f0f7", "#cbc9e2", "#9e9ac8", "#756bb1", "#54278f"];  //blue
-    colorTimeScale = d3.scaleQuantize() //went with log scale
-            .domain(d3.extent(domainTimesIn)) //domainTimes //kttime [0,10088524656]
-            .range(colorsPur);
+    colorsIn = ["#f2f0f7", "#cbc9e2", "#9e9ac8", "#756bb1", "#54278f"];  //purple
+    colorsEx = ["#edf8fb", "#b2e2e2", "#66c2a4", "#2ca25f", "#006d2c"]; //green
+    colorsInDiff = ["#e66101", "#fdb863", "#f7f7f7", "#b2abd2", "#5e3c99"]; //diverging purple orange
+    colorsExDiff = ["#d01c8b", "#f1b6da", "#f7f7f7", "#b8e186", "#4dac26"]; //diverging green pink
+
+    currentColors = colorsIn;
+    currentDomainTimes = domainTimesIn;
+    currentColorTimeScale = d3.scaleQuantize() //went with log scale
+            .domain([0, d3.extent(currentDomainTimes)[1]]) //domainTimes //kttime [0,10088524656]
+            .range(currentColors);
+
+    greatestVal = currentColorTimeScale.invertExtent(currentColors[currentColors.length - 1])[1];
     //gotta get the domain values for each color
-    domainVals = [colorTimeScale.invertExtent(colorsPur[0])[0]];
-    greatestVal = colorTimeScale.invertExtent(colorsPur[colorsPur.length - 1])[1];
-    for (var i = 0; i < colorsPur.length; i++) {
-        domainVals.push(colorTimeScale.invertExtent(colorsPur[i])[1]);
+    currentColorDomainVals = [currentColorTimeScale.invertExtent(currentColors[0])[0]];
+    for (var i = 0; i < currentColors.length; i++) {
+        currentColorDomainVals.push(currentColorTimeScale.invertExtent(currentColors[i])[1]);
     }
 
 
-    // ****************** Slider section **************************
-    threshold = 0;
 
-    update(root, fullRoot, perfdata, threshold, false);
-
-    x = d3.scaleLinear()
-            .domain([0, greatestVal])
-            .range([0, 300]);
-
-    xAxis = d3.axisBottom()
-            .scale(x)
-            .tickSize(13)
-            .tickValues(domainVals)
-            .tickFormat(function (d) {
-                return prettyprintTime(d);
-            }); // === 0.5 ? formatPercent(d) : formatNumber(100 * d); });
-
-    var legendDim = {width: 600, height: 45};
-    var g = d3.select("#legend").append("svg")
-            .attr("class", "legend")
-            .attr("width", legendDim.width)
-            .attr("height", legendDim.height)
-            .append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(200,18)")
-            .call(xAxis);
-
-    g.select(".domain")
-            .remove();
-    if (timetype === "EXCLUSIVE") {
-        g.selectAll("rect")
-                .data(colorExTimeScale.range().map(function (color) {
-                    var d = colorExTimeScale.invertExtent(color);
-                    if (d[0] == null)
-                        d[0] = x.domain()[0];
-                    if (d[1] == null)
-                        d[1] = x.domain()[1];
-                    return d;
-                }))
-                .enter().insert("rect", ".tick")
-                .attr("height", 8)
-                .attr("x", function (d) {
-                    return x(d[0]);
-                })
-                .attr("width", function (d) {
-                    return x(d[1]) - x(d[0]);
-                })
-                .attr("fill", function (d) {
-                    return colorExTimeScale(d[0]);
-                });
-    } else {
-        g.selectAll("rect")
-                .data(colorInTimeScale.range().map(function (color) {
-                    var d = colorInTimeScale.invertExtent(color);
-                    if (d[0] == null)
-                        d[0] = x.domain()[0];
-                    if (d[1] == null)
-                        d[1] = x.domain()[1];
-                    return d;
-                }))
-                .enter().insert("rect", ".tick")
-                .attr("height", 8)
-                .attr("x", function (d) {
-                    return x(d[0]);
-                })
-                .attr("width", function (d) {
-                    return x(d[1]) - x(d[0]);
-                })
-                .attr("fill", function (d) {
-                    return colorInTimeScale(d[0]);
-                });
-    }
-    g.append("text")
-            .attr("fill", "#000")
-            .attr("font-weight", "bold")
-            .attr("text-anchor", "start")
-            .attr("y", -6)
-            .text("Average time per instance");
-
+    //update(root, fullRoot, perfdata, perfdata2, false);
+    //console.log("greatestVal", greatestVal);
+    /*
+     */
+    var date1 = document.getElementById("selectedDate1").value;
+    var date2 = document.getElementById("selectedDate2").value;
+    var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+    console.log("currentTime", currentTime);
+    update(root, fullRoot, perfdata, perfdata2, false);
 }
 
 
@@ -256,14 +206,80 @@ function countNodes(node) {
     }
 }
 
+function getCurrentTimeScheme(date1, date2, timetype) {
+    if (date1 && date2) {
+        // We have both so take the difference
+        if (timetype === "INCLUSIVE") {
+            return "inclusiveDiffTime";
+        } else {
+            return "exclusiveDiffTime";
+        }
+    } else {
+        if (timetype === "INCLUSIVE") {
+            return "inclusiveTime";
+        } else {
+            return "exclusiveTime";
+        }
+    }
+}
+
+function setCurrentColors(currentTime) {
+    console.log("setCurrentColors() with ", currentTime);
+
+    // We have both so take the difference
+    if (currentTime === "inclusiveDiffTime") {
+        //console.log("Diff INCLUSIVE time colors");
+        currentColors = colorsInDiff;
+        currentDomainTimes = domainTimesInDiff;
+        currentColorTimeScale = d3.scaleQuantize() //went with log scale
+                .domain([-greatestValInDiff, greatestValInDiff]) //domainTimes //kttime [0,10088524656]
+                .range(colorsInDiff);
+        //gotta get the domain values for each color
+        currentColorDomainVals = [currentColorTimeScale.invertExtent(colorsInDiff[0])[0]];
+        //greatestVal = currentColorTimeScale.invertExtent(colorsInDiff[colorsInDiff.length - 1])[1];
+        return "inclusiveDiffTime";
+    } else if (currentTime === "exclusiveDiffTime") {
+        //console.log("Diff exclusive time colors");
+        currentColors = colorsEx;
+        currentDomainTimes = domainTimesExDiff;
+        currentColorTimeScale = d3.scaleQuantize() //went with log scale
+                .domain([-greatestValExDiff, greatestValExDiff]) //domainTimes //kttime [0,10088524656]
+                .range(colorsExDiff);
+        //gotta get the domain values for each color
+        currentColorDomainVals = [currentColorTimeScale.invertExtent(colorsExDiff[0])[0]];
+        //greatestVal = greatestValExDiff; //currentColorTimeScale.invertExtent(colorsExDiff[colorsExDiff.length - 1])[1];
+        return "exclusiveDiffTime";
+    } else if (currentTime === "inclusiveTime") {
+        //console.log("INCLUSIVE time colors");
+        currentColors = colorsIn;
+        currentDomainTimes = domainTimesIn;
+        currentColorTimeScale = d3.scaleQuantize() //went with log scale
+                .domain(d3.extent(domainTimesIn)) //domainTimes //kttime [0,10088524656]
+                .range(colorsIn);
+        //gotta get the domain values for each color
+        currentColorDomainVals = [currentColorTimeScale.invertExtent(colorsIn[0])[0]];
+        //greatestVal = currentColorTimeScale.invertExtent(colorsIn[colorsIn.length - 1])[1];
+        return "inclusiveTime";
+    } else {
+        //console.log("exclusive time colors");
+        currentColors = colorsEx;
+        currentDomainTimes = domainTimesEx;
+        currentColorTimeScale = d3.scaleQuantize() //went with log scale
+                .domain(d3.extent(domainTimesEx)) //domainTimes //kttime [0,10088524656]
+                .range(colorsEx);
+        //gotta get the domain values for each color
+        currentColorDomainVals = [currentColorTimeScale.invertExtent(colorsEx[0])[0]];
+        //greatestVal = currentColorTimeScale.invertExtent(colorsEx[colorsEx.length - 1])[1];
+        return "exclusiveTime";
+    }
+
+}
+
+
 offset = 0;
+function update(source, fullRoot, perfdata, perfdata2, clicked) {
+    console.log("update", timetype);
 
-function update(source, fullSource, perfdata, threshold, clicked) {
-
-    // handle.attr("cx", slider_x(threshold));
-    // sliderText.text(prettyprintTime(threshold))
-    //         .attr("font-family", "sans-serif")
-    //         .attr("font-size", "15px");
     // Assigns the x and y position for the nodes
     var tree = treemap(root);
     var fullTree = treemap(fullRoot);
@@ -329,52 +345,121 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                     //Necessary for tree-vis
                     d._perfdata = perfdata[prim_inst.indexOf(nodename)];
                     d._perfdata.save_display_name = d._perfdata.display_name;
+
+                    if (perfdata2) {
+                        node_perfdata2 = perfdata2[prim_inst.indexOf(nodename)];
+                        if (node_perfdata2) {
+                            node_perfdata2.eval_direct = +node_perfdata2.eval_direct;
+                            node_perfdata2.avg_time = +(node_perfdata2.time / node_perfdata2.count);
+                            if (+node_perfdata2.count === 0)
+                                node_perfdata2.avg_time = node_perfdata2.time;
+                            if (!node_perfdata2.avg_time)
+                                node_perfdata2.avg_time = 0;
+
+                            d._perfdata2 = perfdata2[prim_inst.indexOf(nodename)];
+                            d._perfdata2.save_display_name = d._perfdata2.display_name;
+
+                        }
+                    }
                 }
                 return d.id || (d.id = ++i);
             });
     //Add exclusive time after all children nodes have been created
     node.data(nodes, function (d) {
         d.childrenTime = 0;
+        d.childrenTime2 = 0;
         if (d.children) {
             for (child of d.children) {
                 //d.childrenTime += +(child._perfdata.time); //sum children
                 if (child._perfdata.time > d.childrenTime) {
                     d.childrenTime = child._perfdata.time;
                 }
+                if (child._perfdata2) {
+                    if (child._perfdata2.time > d.childrenTime2) {
+                        d.childrenTime2 = child._perfdata2.time;
+                    }
+                }
             }
         }
         if (d._perfdata) {
             d._perfdata.exclusiveTime = d._perfdata.time - d.childrenTime;
             d._perfdata.inclusiveTime = +d._perfdata.time;
-            //Katy
+
             domainTimesEx.push(d._perfdata.exclusiveTime);
             domainTimesIn.push(d._perfdata.inclusiveTime);
+        }
+        if (d._perfdata2) {
+            d._perfdata2.exclusiveTime = d._perfdata2.time - d.childrenTime2;
+            d._perfdata2.inclusiveTime = +d._perfdata2.time;
+        }
+
+        if (d._perfdata && d._perfdata2) {
+
+            if (d._perfdata.inclusiveTime && d._perfdata2.inclusiveTime) {
+                d._perfdata.inclusiveDiffTime = d._perfdata.inclusiveTime - d._perfdata2.inclusiveTime;
+            } else {
+                d._perfdata.inclusiveDiffTime = 0;//22; //Katy no diff time
+            }
+
+            if (d._perfdata.exclusiveTime && d._perfdata2.exclusiveTime) {
+                d._perfdata.exclusiveDiffTime = d._perfdata.exclusiveTime - d._perfdata2.exclusiveTime;
+            } else {
+                d._perfdata.exclusiveDiffTime = 0; //22;
+            }
+            //Katy
+            domainTimesInDiff.push(d._perfdata.inclusiveDiffTime);
+            domainTimesExDiff.push(d._perfdata.exclusiveDiffTime);
         }
     });
 
     greatestValEx = d3.extent(domainTimesEx)[1];
     greatestValIn = d3.extent(domainTimesIn)[1];
+    greatestValInDiff = Math.max(Math.abs(d3.extent(domainTimesInDiff)[0]), Math.abs(d3.extent(domainTimesInDiff)[1]));
+    greatestValExDiff = Math.max(Math.abs(d3.extent(domainTimesExDiff)[0]), Math.abs(d3.extent(domainTimesExDiff)[1]));
+    console.log(d3.extent(domainTimesInDiff), greatestValInDiff);
+
+    //console.log("in", greatestValIn, " ex", greatestValEx, " inDiff", greatestValInDiff, " exDiff", greatestValExDiff);
+
 
     colorExTimeScale = d3.scaleQuantize() //went with log scale
             .domain([0, d3.extent(domainTimesEx)[1]]) //domainTimes //kttime issue
-            .range(colorsGr);
+            .range(colorsEx);
     //gotta get the domain values for each color
-    domainValsEx = [colorExTimeScale.invertExtent(colorsGr[0])[0]];
-    greatestValEx = colorExTimeScale.invertExtent(colorsGr[colorsGr.length - 1])[1];
-    for (var i = 0; i < colorsGr.length; i++) {
-        domainValsEx.push(colorExTimeScale.invertExtent(colorsGr[i])[1]);
+    domainValsEx = [colorExTimeScale.invertExtent(colorsEx[0])[0]];
+    greatestValEx = colorExTimeScale.invertExtent(colorsEx[colorsEx.length - 1])[1];
+    for (var i = 0; i < colorsEx.length; i++) {
+        domainValsEx.push(colorExTimeScale.invertExtent(colorsEx[i])[1]);
     }
 
-    colorInTimeScale = d3.scaleQuantize() //went with log scale
-            .domain(d3.extent(domainTimesIn)) //domainTimes 
-            .range(colorsPur);
+    colorInTimeScale = d3.scaleQuantize()
+            .domain(d3.extent(domainTimesIn))
+            .range(colorsIn);
     //gotta get the domain values for each color
-    domainValsIn = [colorInTimeScale.invertExtent(colorsPur[0])[0]];
-    greatestValIn = colorInTimeScale.invertExtent(colorsPur[colorsPur.length - 1])[1];
-    for (var i = 0; i < colorsPur.length; i++) {
-        domainValsIn.push(colorInTimeScale.invertExtent(colorsPur[i])[1]);
+    domainValsIn = [colorInTimeScale.invertExtent(colorsIn[0])[0]];
+    greatestValIn = colorInTimeScale.invertExtent(colorsIn[colorsIn.length - 1])[1];
+    for (var i = 0; i < colorsIn.length; i++) {
+        domainValsIn.push(colorInTimeScale.invertExtent(colorsIn[i])[1]);
     }
 
+    colorExDiffTimeScale = d3.scaleQuantize()
+            .domain([-greatestValExDiff, greatestValExDiff])
+            .range(colorsExDiff);
+    //gotta get the domain values for each color
+    domainValsExDiff = [colorExDiffTimeScale.invertExtent(colorsExDiff[0])[0]];
+    greatestValExDiff = colorExDiffTimeScale.invertExtent(colorsExDiff[colorsExDiff.length - 1])[1];
+    for (var i = 0; i < colorsExDiff.length; i++) {
+        domainValsExDiff.push(colorExDiffTimeScale.invertExtent(colorsExDiff[i])[1]);
+    }
+
+    colorInDiffTimeScale = d3.scaleQuantize() //went with log scale
+            .domain([-greatestValInDiff, greatestValInDiff]) //domainTimes 
+            .range(colorsInDiff);
+    //gotta get the domain values for each color
+    domainValsInDiff = [-greatestValInDiff];
+    for (var i = 0; i < colorsInDiff.length; i++) {
+        domainValsInDiff.push(colorInDiffTimeScale.invertExtent(colorsInDiff[i])[1]);
+    }
+    console.log("domainValsInDiff", domainValsInDiff);
 
     // Enter any new modes at the parent's previous position.
     var nodeEnter = node.enter().append('g')
@@ -386,26 +471,32 @@ function update(source, fullSource, perfdata, threshold, clicked) {
             .attr("transform", function (d) {
                 return "translate(" + source.y0 + "," + source.x0 + ")";
             })
-            .on('click', click);
-//            .on("mouseenter", function (d) {
-//                if (d.x < 120) { //magic number re tooltip size
-//                    tool_tip_south.show(d);
-//                } else {
-//                    tool_tip.show(d);
-//                }
-//                showNodeCode(d);
-//            })
-//            .on("mouseout", function (d) {
-//                tool_tip.hide(d);
-//                tool_tip_south.hide(d);
-//                
-//                hideNodeCode(d);
-//            });
+            .on('click', click)
+            .on("mouseenter", function (d) {
+                if (d.x < 120) { //magic number re tooltip size
+                    tool_tip_south.show(d);
+                } else {
+                    tool_tip.show(d);
+                }
+                showNodeCode(d);
+            })
+            .on("mouseout", function (d) {
+                tool_tip.hide(d);
+                tool_tip_south.hide(d);
+
+                hideNodeCode(d);
+            });
 
 
+
+    // Determine what color scale to use
+    var date1 = document.getElementById("selectedDate1").value;
+    var date2 = document.getElementById("selectedDate2").value;
+    currentTime = getCurrentTimeScheme(date1, date2, timetype);
+    dAttribute = setCurrentColors(currentTime);
+    console.log("Color the paths with ", dAttribute);
 
     var symbol = d3.symbol().size([150]);
-
     prevNodeNum = -1;
     nodeEnter
             .append("path")
@@ -432,29 +523,45 @@ function update(source, fullSource, perfdata, threshold, clicked) {
             })
             .style("stroke", "black")
             .style("fill", function (d) { //katy
-                if (d._perfdata) { //color circle by time-per-instance
-                    if (timetype === "EXCLUSIVE") {
-                        d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                if (d._perfdata) {
+                    if (dAttribute === "inclusiveTime") {
+                        if (d._perfdata.inclusiveTime < 0)
+                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveTime);
+                    } else if (dAttribute === "exclusiveTime") {
                         if (d._perfdata.exclusiveTime < 0)
                             return "magenta";
-                        return colorExTimeScale(d._perfdata.exclusiveTime);
-                    } else if (timetype === "INCLUSIVE") {
-                        if (d._perfdata.inclusiveTime >= 0) {
-                            d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
-                            return colorInTimeScale(d._perfdata.inclusiveTime);
-                        } else if (d._perfdata.inclusiveTime < 0) {
-                            return "magenta";
-                        }
-                        return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveTime);
+                    } else if (dAttribute === "inclusiveDiffTime") {
+//                        if (d._perfdata.inclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+
+                    } else if (dAttribute === "exclusiveDiffTime") {
+//                        if (d._perfdata.exclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
                     }
+                } else {
+                    return "black";
                 }
-                return "black";
+
             })
             .on("mouseover", function (d) {
                 //recolor previously-highlighted line
                 if (lineSelected)
                     d3.select(lineSelected).style("background-color", "#eff3f8");
+                // Determine what color scale to use
+                var date1 = document.getElementById("selectedDate1").value;
+                var date2 = document.getElementById("selectedDate2").value;
 
+                var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+                var dAttribute = setCurrentColors(currentTime);
+                //console.log("On mouseover, color with ", dAttribute);
                 // recolor any previously-highlighted nodes
                 d3.selectAll(".node")
 //                        .filter(function (d) {
@@ -464,18 +571,31 @@ function update(source, fullSource, perfdata, threshold, clicked) {
 //                    }
 //                })
                         .select("path").style("fill", function (d) {
-                    if (d._perfdata) { //color circle by time-per-instance
-
-                        if (timetype === "INCLUSIVE") {
-                            d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
-                            return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
-                        } else {
-                            d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
-                            if (d._perfdata.exclusiveTime < 0)
+                    if (d._perfdata) {
+                        if (dAttribute === "inclusiveTime") {
+                            if (d._perfdata.inclusiveTime < 0)
                                 return "magenta";
-                            return colorExTimeScale(d._perfdata.exclusiveTime);
+                            d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                            return currentColorTimeScale(d._perfdata.inclusiveTime);
+                        } else if (dAttribute === "exclusiveTime") {
+                            if (d._perfdata.exclusiveTime < 0) {
+                                return "magenta";
+                            }
+                            d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                            return currentColorTimeScale(d._perfdata.exclusiveTime);
+                        } else if (dAttribute === "inclusiveDiffTime") {
+//                            if (d._perfdata.inclusiveDiffTime === 22)
+//                                return "magenta";
+                            d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                            return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                        } else if (dAttribute === "exclusiveDiffTime") {
+//                            if (d._perfdata.exclusiveDiffTime === 22)
+//                                return "magenta";
+                            d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                            return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
                         }
                     }
+                    return "black";
                 });
 
                 // Color the selected node yellow
@@ -541,7 +661,12 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                 if (d._perfdata) {
                     currName = getImportantTypeName(d._perfdata);
                 }
+                var date1 = document.getElementById("selectedDate1").value;
+                var date2 = document.getElementById("selectedDate2").value;
 
+                var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+                var dAttribute = setCurrentColors(currentTime);
+                //console.log("On mouseout, color with ", dAttribute);
                 d3.selectAll(".node").selectAll("path")
 //                        .filter(function (d) {
 //                    var nodeName = "";
@@ -555,17 +680,32 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                         .style("fill", function (d) {
                             if (d.id === prevNodeNum)
                                 return "yellow";
-                            if (d._perfdata) { //color circle by time-per-instance
-                                if (timetype === "INCLUSIVE") {
-                                    d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
-                                    return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
-                                } else {
-                                    d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                            if (d._perfdata) {
+                                if (dAttribute === "inclusiveTime") {
+                                    if (d._perfdata.inclusiveTime < 0)
+                                        return "magenta";
+                                    d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                                    return currentColorTimeScale(d._perfdata.inclusiveTime);
+                                } else if (dAttribute === "exclusiveTime") {
                                     if (d._perfdata.exclusiveTime < 0)
                                         return "magenta";
-                                    return colorExTimeScale(d._perfdata.exclusiveTime);
+                                    d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                                    return currentColorTimeScale(d._perfdata.exclusiveTime);
+                                } else if (dAttribute === "inclusiveDiffTime") {
+//                                    if (d._perfdata.inclusiveDiffTime === 22)
+//                                        return "magenta";
+                                    d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                                    return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                                } else if (dAttribute === "exclusiveDiffTime") {
+//                                    if (d._perfdata.exclusiveDiffTime === 22)
+//                                        return "magenta";
+                                    d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                                    return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                                } else {
+                                    return "lavender";
                                 }
                             }
+                            return "black";
                         });
                 d3.selectAll(".hl-edges").remove();
 
@@ -613,7 +753,36 @@ function update(source, fullSource, perfdata, threshold, clicked) {
 //        })
                 .select("path").style("fill", function (d) {
             //console.log("Recolor any previously highlighted nodes", d.oldColor);
-            return d.oldColor;
+            var date1 = document.getElementById("selectedDate1").value;
+            var date2 = document.getElementById("selectedDate2").value;
+
+            var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+            var dAttribute = setCurrentColors(currentTime);
+            console.log("On mouseover of a code line, color with ", dAttribute);
+            if (d._perfdata) {
+                if (dAttribute === "inclusiveTime") {
+                    if (d._perfdata.inclusiveTime < 0)
+                        return "magenta";
+                    d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                    return currentColorTimeScale(d._perfdata.inclusiveTime);
+                } else if ((dAttribute === "exclusiveTime")) {
+                    if (d._perfdata.exclusiveTime < 0)
+                        return "magenta";
+                    d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                    return currentColorTimeScale(d._perfdata.exclusiveTime);
+                } else if ((dAttribute === "inclusiveDiffTime")) {
+//                    if (d._perfdata.inclusiveDiffTime === 22)
+//                        return "magenta";
+                    d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                    return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                } else if ((dAttribute === "exclusiveDiffTime")) {
+//                    if (d._perfdata.exclusiveDiffTime === 22)
+//                        return "magenta";
+                    d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                    return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                }
+            }
+            return "black"; //d.oldColor;
         });
 
         d3.select(this).style("background-color", "yellow");
@@ -628,7 +797,6 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                 return true;
             }
         }).select("path").style("fill", function (d) {
-            //console.log(d);
             lineNodeX = d.x;
             lineNodeY = d.y;
             d.oldColor = d3.select(this).style("fill");
@@ -646,6 +814,106 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                 //Expand node if possible
             });
 
+
+
+    var date1 = document.getElementById("selectedDate1").value;
+    var date2 = document.getElementById("selectedDate2").value;
+
+    var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+    var dAttribute = setCurrentColors(currentTime);
+    console.log("Color the legend with ", dAttribute);
+
+    currentDomain = [0, 0];
+    if (dAttribute === "inclusiveTime") {
+        currentDomain = [0, greatestValIn];
+        currentColorTimeScale = colorInTimeScale;
+    } else if (dAttribute === "exclusiveTime") {
+        console.log("USING THIS DOMAIN [0", greatestValEx);
+        currentDomain = [0, greatestValEx];
+        currentColorTimeScale = colorExTimeScale;
+    } else if (dAttribute === "inclusiveDiffTime") {
+        console.log("USING THIS DOMAIN [", greatestValInDiff, greatestValInDiff, "]");
+        currentDomain = [-greatestValInDiff, greatestValInDiff];
+        currentColorTimeScale = colorInDiffTimeScale;
+    } else if (dAttribute === "exclusiveDiffTime") {
+        console.log("USING THIS DOMAIN [", greatestValExDiff, greatestValExDiff, "]");
+        currentDomain = [-greatestValExDiff, greatestValExDiff];
+        currentColorTimeScale = colorExDiffTimeScale;
+    }
+    console.log("Current Domain: ", currentDomain, "current colors", currentColors);
+    currentColorDomainVals = [currentColorTimeScale.invertExtent(currentColors[0])[0]];
+    for (var i = 0; i < currentColors.length; i++) {
+        currentColorDomainVals.push(currentColorTimeScale.invertExtent(currentColors[i])[1]);
+    }
+    console.log("Current color domain vals", currentColorDomainVals);
+    x = d3.scaleLinear()
+            .domain(currentDomain)
+            .range([0, 300]);
+
+    xAxis = d3.axisBottom()
+            .scale(x)
+            .tickSize(13)
+            .tickValues(currentColorDomainVals)
+            .tickFormat(function (d) {
+                return prettyprintTime(d);
+            }); // === 0.5 ? formatPercent(d) : formatNumber(100 * d); });
+
+
+    var legendDim = {width: 525, height: 43};
+    var g = d3.select("#legend").append("svg")
+            .attr("class", "legend")
+            .attr("width", legendDim.width)
+            .attr("height", legendDim.height)
+            .append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(200,18)")
+            .call(xAxis);
+
+    g.select(".domain")
+            .remove();
+
+
+//    dAttribute = setCurrentColors(date1, date2, timetype);
+
+    g.selectAll("rect")
+            .data(currentColorTimeScale.range().map(function (color) {
+                var d = currentColorTimeScale.invertExtent(color);
+                if (d[0] == null)
+                    d[0] = x.domain()[0];
+                if (d[1] == null)
+                    d[1] = x.domain()[1];
+                return d;
+            }))
+            .enter().insert("rect", ".tick")
+            .attr("height", 8)
+            .attr("x", function (d) {
+                return x(d[0]);
+            })
+            .attr("width", function (d) {
+                return x(d[1]) - x(d[0]);
+            })
+            .attr("fill", function (d) {
+                var dAttribute = setCurrentColors(currentTime);
+                console.log("Color legend rectangles with ", dAttribute);
+                return currentColorTimeScale(d[0]);
+            });
+    g.append("text")
+            .attr("fill", "#000")
+            .attr("font-weight", "bold")
+            .attr("text-anchor", "start")
+            .attr("y", -6)
+            .text(function (dAttribute) {
+                if (currentTime === "inclusiveTime") {
+                    return "Average inclusive time per instance.";
+                } else if (currentTime === "exclusiveTime") {
+                    return "Average exclusive time per instance.";
+                } else if (currentTime === "inclusiveDiffTime") {
+                    return "Inclusive time difference per instance. Purple: 2nd date slower."
+                } else if (currentTime === "exclusiveDiffTime") {
+                    return "Exclusive time difference per instance. Green: 2nd date slower."
+                }
+                
+            });
 
     // UPDATE
     var nodeUpdate = nodeEnter.merge(node);
@@ -667,16 +935,40 @@ function update(source, fullSource, perfdata, threshold, clicked) {
     nodeUpdate.select('circle.node')
             .attr('r', 12)
             .style("fill", function (d) { //katy
-                if (d._perfdata) { //color circle by time-per-instance
-                    toggleswitch = d3.select("#myCheck");
-                    if (toggleswitch.checked) {
-                        d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
-                        return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
-                    } else {
-                        d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime)
-                        return colorExTimeScale(d._perfdata.exclusiveTime);
+//                if (d._perfdata) { //color circle by time-per-instance
+//                    toggleswitch = d3.select("#myCheck");
+//                    if (toggleswitch.checked) {
+//                        d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
+//                        return colorInTimeScale(d._perfdata.inclusiveTime); //avg_Time
+//                    } else {
+//                        d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime)
+//                        return colorExTimeScale(d._perfdata.exclusiveTime);
+//                    }
+//                }
+                if (d._perfdata) {
+                    if (dAttribute === "inclusiveTime") {
+                        if (d._perfdata.inclusiveTime < 0)
+                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveTime);
+                    } else if (dAttribute === "exclusiveTime") {
+                        if (d._perfdata.exclusiveTime < 0)
+                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveTime);
+                    } else if (dAttribute === "inclusiveDiffTime") {
+//                        if (d._perfdata.inclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                    } else if (dAttribute === "exclusiveDiffTime") {
+//                        if (d._perfdata.exclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
                     }
                 }
+                return "black";
             })
             .attr('cursor', 'pointer');
 
@@ -770,7 +1062,7 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                         //                      d.y = d.parent.y;
                         d.leafnode = true;
                         //                      d.linenode = false;
-                        //console.log(combinedName);
+
                         return false;
                     }
                     return true;
@@ -814,10 +1106,8 @@ function update(source, fullSource, perfdata, threshold, clicked) {
     // Toggle children on click.
     function click(d) { //so children aren't behaving
         if (d.open === 1) {
-            //console.log("it's open");
             d.open = 0;
         } else {
-            //console.log("CLOSED");
             d.open = 1;
         }
         if (d.children) {
@@ -890,30 +1180,36 @@ function update(source, fullSource, perfdata, threshold, clicked) {
                 });
 
 
-        update(d, fullRoot, perfdata, threshold, timetype, clicked = true);
+        update(d, fullRoot, perfdata, perfdata2, clicked = true);
     }
 }
 
 
 function prettyprintTime(time) {
     //converting nanoseconds to nice-looking times
+    negative = false;
+    if (time < 0) {
+        negative = true;
+        time = -time;
+    }
     timeInSeconds = time * 1e-9;
     var exp = -Math.floor(Math.log(timeInSeconds) / Math.log(10)) + 1;
 
     if (timeInSeconds > 1) { //second
-        return (timeInSeconds).toFixed(2) + " s";
+        return (negative) ? (-timeInSeconds).toFixed(2) + " s" : (timeInSeconds).toFixed(2) + " s";
     } else if (exp === 1) {
-        return (timeInSeconds).toFixed(2) + " s"; //millisecond
+        return (negative) ? (-timeInSeconds).toFixed(2) + " s" : (timeInSeconds).toFixed(2) + " s"; //millisecond
     } else if ((exp > 1) && (exp <= 4)) {
-        return (timeInSeconds * 1000).toFixed(2) + " ms"; //millisecond
+        return (negative) ? (-timeInSeconds * 1000).toFixed(2) + " ms" : (timeInSeconds * 1000).toFixed(2) + " ms"; //millisecond
     } else if ((exp > 4) && (exp <= 7)) {
-        return (timeInSeconds * 1000000).toFixed(2) + " us"; //microsecond
+        return (negative) ? (-timeInSeconds * 1000000).toFixed(2) + " us" : (timeInSeconds * 1000000).toFixed(2) + " us"; //microsecond
     } else if ((exp > 7) && (exp <= 10)) {
-        return (timeInSeconds * 1000000000).toFixed(2) + " ns"; //nanosecond
+        return (negative) ? (-timeInSeconds * 1000000000).toFixed(2) + " ns" : (timeInSeconds * 1000000000).toFixed(2) + " ns"; //nanosecond
     } else if ((exp > 10) && (exp <= 13)) {
-        return (timeInSeconds * 1000000000000).toFixed(2) + " ps"; //picosecond
+        return (negative) ? (-timeInSeconds * 1000000000000).toFixed(2) + " ps" : (timeInSeconds * 1000000000000).toFixed(2) + " ps"; //picosecond
     }
-    return timeInSeconds + " s";
+
+    return (negative) ? -timeInSeconds.toFixed(2) + " s" : timeInSeconds.toFixed(2) + " s";
 
 }
 
@@ -929,36 +1225,80 @@ function closeCodeView() {
 }
 
 function toggleSwitchAction() {
+    console.log("toggleSwitchAction");
     toggleswitch = document.getElementById("myCheck");
     (toggleswitch.checked === true) ? timetype = "EXCLUSIVE" : timetype = "INCLUSIVE";
 
+    var date1 = document.getElementById("selectedDate1").value;
+    var date2 = document.getElementById("selectedDate2").value;
+
+    var currentTime = getCurrentTimeScheme(date1, date2, timetype);
+    var dAttribute = setCurrentColors(currentTime);
+    console.log("Click toggleswitch and color with ", dAttribute);
 
     svg.selectAll(".node").selectAll("path").transition()
             .style("fill", function (d) {
+                var dAttribute = setCurrentColors(currentTime);
+                //console.log("Recolor after toggle with ", dAttribute);
                 if (d._perfdata) {
-                    if (timetype === "EXCLUSIVE") {
-                        d.oldColor = colorExTimeScale(d._perfdata.exclusiveTime);
+                    if (dAttribute === "inclusiveTime") {
+                        if (d._perfdata.inclusiveTime < 0)
+                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveTime);
+                    } else if (dAttribute === "exclusiveTime") {
                         if (d._perfdata.exclusiveTime < 0)
                             return "magenta";
-                        return colorExTimeScale(d._perfdata.exclusiveTime); //avg_Time
-                    } else {
-                        d.oldColor = colorInTimeScale(d._perfdata.inclusiveTime);
-                        return colorInTimeScale(d._perfdata.inclusiveTime);
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveTime);
+                    } else if (dAttribute === "inclusiveDiffTime") {
+//                        if (d._perfdata.inclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.inclusiveDiffTime);
+                    } else if (dAttribute === "exclusiveDiffTime") {
+//                        if (d._perfdata.exclusiveDiffTime === 22)
+//                            return "magenta";
+                        d.oldColor = currentColorTimeScale(d._perfdata.exclusiveDiffTime);
+                        return currentColorTimeScale(d._perfdata.exclusiveDiffTime);
                     }
-                } else {
-                    return "black";
                 }
+                return "black";
+//                else {
+//                    return "black";
+//                }
             });
 
-    (timetype === "EXCLUSIVE") ? x.domain([0, greatestValEx]) : x.domain([0, greatestValIn]);
-    (timetype === "EXCLUSIVE") ? xAxis.tickValues(domainValsEx) : xAxis.tickValues(domainValsIn);
+//    (timetype === "EXCLUSIVE") ? x.domain([0, greatestValEx]) : x.domain([0, greatestValIn]);
+//    (timetype === "EXCLUSIVE") ? xAxis.tickValues(domainValsEx) : xAxis.tickValues(domainValsIn);
+//    var date1 = document.getElementById("selectedDate1").value;
+//    var date2 = document.getElementById("selectedDate2").value;
+//    currentTime = getCurrentTimeScheme(date1, date2, timetype);
+//    dAttribute = setCurrentColors(currentTime);
+    if (dAttribute === "inclusiveTime") {
+        x.domain([0, greatestValIn]);
+        xAxis.tickValues(domainValsIn);
+        currentColorTimeScale = colorInTimeScale;
+    } else if (dAttribute === "exclusiveTime") {
+        x.domain([0, greatestValEx]);
+        xAxis.tickValues(domainValsEx);
+        currentColorTimeScale = colorExTimeScale;
+    } else if (dAttribute === "inclusiveDiffTime") {
+        x.domain([-greatestValInDiff, greatestValInDiff]);
+        xAxis.tickValues(domainValsInDiff);
+        currentColorTimeScale = colorInDiffTimeScale;
+    } else if (dAttribute === "exclusiveDiffTime") {
+        x.domain([-greatestValExDiff, greatestValExDiff]);
+        xAxis.tickValues(domainValsExDiff);
+        currentColorTimeScale = colorExDiffTimeScale;
+    }
     d3.select(".x").transition().call(xAxis);
 
     var g = d3.select(".legend");
     g.select(".domain")
             .remove();
 
-    (timetype === "EXCLUSIVE") ? currentColorTimeScale = colorExTimeScale : currentColorTimeScale = colorInTimeScale;
+    //(timetype === "EXCLUSIVE") ? currentColorTimeScale = colorExTimeScale : currentColorTimeScale = colorInTimeScale;
     g.selectAll("rect")
             .data(
                     currentColorTimeScale.range().map(function (color) {
@@ -977,7 +1317,8 @@ function toggleSwitchAction() {
                 return x(d[1]) - x(d[0]);
             })
             .style("fill", function (d) {
-                return (timetype === "EXCLUSIVE") ? colorExTimeScale(d[0]) : colorInTimeScale(d[0]);
+                return currentColorTimeScale(d[0]);
+                //return (timetype === "EXCLUSIVE") ? colorExTimeScale(d[0]) : colorInTimeScale(d[0]);
             });
 
 

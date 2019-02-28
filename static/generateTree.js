@@ -1,12 +1,12 @@
-/*
- * General tree builder. Interfaces with any -tree.js file. 
- */
+/* generateTree.js*/
+console.log("generateTree");
+
 timetype = "INCLUSIVE";
 
 function callEverything(textfile1, csvfile1, textfile2, csvfile2) {
     console.log("callEverything");
-    
     var currentTime = getCurrentTimeScheme();
+    // var currentTime = ""
     console.log("currentTime", currentTime);
 
     if (textfile1 && csvfile1 && textfile2 && csvfile2) {
@@ -100,8 +100,14 @@ function analyze(error, treeformat, perfdata, treeformat2, perfdata2) {
         //        if (avgTime > 0) {
         //            domainTimes.push(avgTime); //katy check times * 1.e-9);
         //        }
-        domainTimesIn.push(+d.time); //kttime
-        prim_inst.push(d.primitive_instance);
+
+        //Only add time and primitive if they exist in the tree 
+        // (perfdata gets all functions, not just lra)
+        console.log(d);
+        if (treeformatOrig.includes(d.primitive_instance)) { 
+            domainTimesIn.push(+d.time); //kttime
+            prim_inst.push(d.primitive_instance);
+        }
     });
 
 
@@ -204,30 +210,29 @@ function countNodes(node) {
     }
 }
 
-/* This needs to be moved to als-daily-tree.js to make it custom */
-/*function getCurrentTimeScheme(date1, date2, timetype) {
-    date1 = "2019-01-05-als";
-    date2 = "2019-01-30-als";
+// function getCurrentTimeScheme(date1, date2, timetype) {
+//     date1 = "2019-01-05-als";
+//     date2 = "2019-01-30-als";
     
     
-    if (date1 && date2) {
-        // We have both so take the difference
-        if (timetype === "INCLUSIVE") {
-            return "inclusiveDiffTime";
-        } else {
-            return "exclusiveDiffTime";
-        }
-    } else {
-        if (timetype === "INCLUSIVE") {
-            return "inclusiveTime";
-        } else {
-            return "exclusiveTime";
-        }
-    }
-}
-*/
+//     if (date1 && date2) {
+//         // We have both so take the difference
+//         if (timetype === "INCLUSIVE") {
+//             return "inclusiveDiffTime";
+//         } else {
+//             return "exclusiveDiffTime";
+//         }
+//     } else {
+//         if (timetype === "INCLUSIVE") {
+//             return "inclusiveTime";
+//         } else {
+//             return "exclusiveTime";
+//         }
+//     }
+// }
+
 function setCurrentColors(currentTime) {
-    console.log("setCurrentColors() with ", currentTime);
+    //console.log("setCurrentColors() with ", currentTime);
 
     // We have both so take the difference
     if (currentTime === "inclusiveDiffTime") {
@@ -431,7 +436,7 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
     greatestValIn = d3.extent(domainTimesIn)[1];
     greatestValInDiff = Math.max(Math.abs(d3.extent(domainTimesInDiff)[0]), Math.abs(d3.extent(domainTimesInDiff)[1]));
     greatestValExDiff = Math.max(Math.abs(d3.extent(domainTimesExDiff)[0]), Math.abs(d3.extent(domainTimesExDiff)[1]));
-
+    
     //console.log("in", greatestValIn, " ex", greatestValEx, " inDiff", greatestValInDiff, " exDiff", greatestValExDiff);
 
 
@@ -473,7 +478,8 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
     for (var i = 0; i < colorsInDiff.length; i++) {
         domainValsInDiff.push(colorInDiffTimeScale.invertExtent(colorsInDiff[i])[1]);
     }
-   
+    
+
     // Enter any new modes at the parent's previous position.
     var nodeEnter = node.enter().append('g')
             .attr('class', 'node')
@@ -553,7 +559,6 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
                         d.oldColor = currentColorTimeScale(d._perfdata.exclusiveTime);
                         return currentColorTimeScale(d._perfdata.exclusiveTime);
                     } else if (dAttribute === "inclusiveDiffTime") {
-                        
                         if (d.infade) { return "black";}
 //                        if (d._perfdata.inclusiveDiffTime === 22)
 //                            return "magenta";
@@ -697,8 +702,8 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
                 if (d._perfdata) {
                     currName = getImportantTypeName(d._perfdata);
                 }
-                var currentTime = getCurrentTimeScheme();
-                var dAttribute = setCurrentColors(currentTime);
+               var currentTime = getCurrentTimeScheme();
+               var dAttribute = setCurrentColors(currentTime);
                 //console.log("On mouseout, color with ", dAttribute);
                 d3.selectAll(".node").selectAll("path")
 //                        .filter(function (d) {
@@ -786,7 +791,6 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
 //        })
                 .select("path").style("fill", function (d) {
             //console.log("Recolor any previously highlighted nodes", d.oldColor);
-           
             var currentTime = getCurrentTimeScheme();
             var dAttribute = setCurrentColors(currentTime);
             //console.log("On mouseover of a code line, color with ", dAttribute);
@@ -844,7 +848,8 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
                 //            console.log("elem scrolltop", elem.scrollTop, lineNodeX);
                 //Expand node if possible
             });
-    // Remove existing legend
+
+    //Remove existing legend
     d3.selectAll(".legend").remove();
 
     var currentTime = getCurrentTimeScheme();
@@ -860,15 +865,17 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
         currentDomain = [0, greatestValEx];
         currentColorTimeScale = colorExTimeScale;
     } else if (dAttribute === "inclusiveDiffTime") {
-        console.log("USING THIS DOMAIN inDiff[", -greatestValInDiff, greatestValInDiff, "]");
+        console.log("USING THIS DOMAIN inDiff [", -greatestValInDiff, greatestValInDiff, "]");
         currentDomain = [-greatestValInDiff, greatestValInDiff];
         currentColorTimeScale = colorInDiffTimeScale;
     } else if (dAttribute === "exclusiveDiffTime") {
-        console.log("USING THIS DOMAIN exDiff[", -greatestValExDiff, greatestValExDiff, "]");
+        console.log("USING THIS DOMAIN exDiff [", -greatestValExDiff, greatestValExDiff, "]");
         currentDomain = [-greatestValExDiff, greatestValExDiff];
         currentColorTimeScale = colorExDiffTimeScale;
     }
-    console.log("Current Domain: ", currentDomain, "current colors", currentColors);
+
+    console.log("Current Domain: ", currentDomain, "current colors", currentColors, "\n\t",
+        currentColorTimeScale.invertExtent("#d01c8b"));
     currentColorDomainVals = [currentColorTimeScale.invertExtent(currentColors[0])[0]];
     for (var i = 0; i < currentColors.length; i++) {
         currentColorDomainVals.push(currentColorTimeScale.invertExtent(currentColors[i])[1]);
@@ -1222,7 +1229,6 @@ function update(source, fullRoot, perfdata, perfdata2, clicked) {
                     return d.oldColor;
                 });
 
-
         update(d, fullRoot, perfdata, perfdata2, clicked = true);
     }
 }
@@ -1273,6 +1279,7 @@ function toggleSwitchAction() {
     console.log("toggleSwitchAction");
     toggleswitch = document.getElementById("myCheck");
     (toggleswitch.checked === true) ? timetype = "EXCLUSIVE" : timetype = "INCLUSIVE";
+
 
     var currentTime = getCurrentTimeScheme();
     var dAttribute = setCurrentColors(currentTime);

@@ -212,8 +212,9 @@ border-radius: 8px
     border: 0px;
     background: #eff3f8;
     overflow-y: scroll;
-    max-width: 610px; /*540px; <-- doesn't interfere w/tree, 650 is ~80 cols'*/
-    min-width: 600px;
+/*    max-width: 610px; 540px; <-- doesn't interfere w/tree, 650 is ~80 cols'
+    min-width: 600px;*/
+    width: 600px;
     font-family: monospace;
     font-size: 12px;
     whitespace: pre;
@@ -226,6 +227,7 @@ border-radius: 8px
 
 #legend {
 position: absolute;
+z-index: -1;
 }
 
 .node-line-key {

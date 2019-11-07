@@ -6,10 +6,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="shortcut icon" href="#"/>
         <!-- Copyright 2016 Mike Bostock https://d3js.org -->
-        <script src="d3.v4.min.js"></script>
+<!--        <script src="static/d3.v4.min.js"></script>
+        <script src="static/d3-tip.js"></script>-->
+        <script src="d3.v4.min.js"></script> <!-- local on Oregon -->
         <script src="d3-tip.js"></script>
         <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<!--        <link rel="stylesheet" href="static/style-ot.css">-->
         <link rel="stylesheet" href="style-ot.css">
 </head>
 <body>
@@ -82,9 +85,11 @@ tool_tip = d3.tip()
       .attr("class", "d3-tip")
       .offset([-8, 0])
       .html(function(d){ 
-         if (d.id === 1) {
+         //if (d.id === 1) {
+         if (!d._perfdata) {
              return "<p>Function: " + d.data.name + "</p>";
          }
+         
           if (d._perfdata.eval_direct === 0) { // 0 async
               return "<p>Primitive instance: " + d._perfdata.display_name + "</p>"+
                     "<p>Count: " + d._perfdata.count + "</p>" +
@@ -101,10 +106,10 @@ tool_tip = d3.tip()
                     "<p>Exclusive time: " + prettyprintTime(d._perfdata.exclusiveTime) + " </p>" +
                     "<p>Inclusive time (undecided): " + prettyprintTime(d._perfdata.inclusiveTime) + " </p>" +
                     "<p>Evaluation style (direct or async) determined at runtime.</p>"; 
-          } else {
+          } else if (d._perfdata){
               return "<p>Primitive instance: " + d._perfdata.display_name + "</p>" +
                       "<p>Total time: " + prettyprintTime(d._perfdata.time) + " </p>";
-          }
+          } 
         });
 
 tool_tip_south = d3.tip()
@@ -193,6 +198,7 @@ function callEverything() {
         codeArray = document.getElementById('main').innerHTML.split("\n");
         document.getElementById('main').innerHTML = "";
 	datadate = document.querySelector("#selectedDate").value;
+        console.log(datadate, document.querySelector("#selectedDate"));
 	textfile = "data/"+datadate + "-tree.txt";
 	csvfile = "data/"+datadate + "-performance.csv";
 
@@ -541,7 +547,7 @@ function update(source, fullSource, perfdata, threshold, timetype, clicked) {
      if (d.children) {
          for (child of d.children) {
              //d.childrenTime += +(child._perfdata.time); //sum children
-             if (child._perfdata.time > d.childrenTime) {
+             if ((child._perfdata) && (child._perfdata.time > d.childrenTime)) {
                  d.childrenTime = child._perfdata.time;
              }
          }
@@ -805,8 +811,9 @@ colorInTimeScale = d3.scaleQuantize() //went with log scale
             }
             d3.selectAll(".node").selectAll("path").filter(function(d){
                 var nodeName = "";
-                if (d._perfdata) nodeName = getImportantTypeName(d._perfdata);
-
+                if (d._perfdata) {
+                    nodeName = getImportantTypeName(d._perfdata);
+                }
                 if (nodeName === currName) return true; 
 
             }).style("fill", function(d){ return d.oldColor; });
@@ -828,7 +835,7 @@ colorInTimeScale = d3.scaleQuantize() //went with log scale
           return "start";
       })
       .text(function(d) { 
-          if (!d.children) {
+          if (!d.children && d._perfdata) {
             return d._perfdata.display_name;              
           } else {
               return "";
